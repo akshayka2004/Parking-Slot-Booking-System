@@ -1,0 +1,137 @@
+{% extends "base.html" %}
+{% block title %}Book {{ slot.id|format_slot }} - ParkHub{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-lg-8">
+        <div class="card">
+            <div class="card-header">
+                <i class="bi bi-calendar-check me-2"></i>Book Parking Slot
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <!-- Slot Info -->
+                    <div class="col-md-5 mb-4 mb-md-0">
+                        <div class="text-center p-4 bg-light rounded">
+                            <div class="parking-slot slot-available mx-auto mb-3" style="width: 100px; height: 120px;">
+                                <div class="text-center">
+                                    <i class="bi bi-car-front-fill d-block mb-1" style="font-size: 2rem;"></i>
+                                    {{ slot.id|format_slot }}
+                                </div>
+                            </div>
+                            <h5 class="mb-1">{{ slot.id|format_slot }}</h5>
+                            <p class="text-muted mb-3">Row {{ slot.row }}, Column {{ slot.column }}</p>
+
+                            <div class="d-flex justify-content-between mb-2">
+                                <span class="text-muted">Distance from entry:</span>
+                                <span>{{ slot.distance }}m</span>
+                            </div>
+                            <div class="d-flex justify-content-between">
+                                <span class="text-muted">Current rate:</span>
+                                <span class="fw-bold text-primary">₹{{ pricing.hourly_rate }}/hr</span>
+                            </div>
+
+                            {% if pricing.is_surge_pricing %}
+                            <div class="alert alert-warning mt-3 mb-0 py-2">
+                                <small>
+                                    <i class="bi bi-lightning-fill me-1"></i>
+                                    Surge pricing active ({{ pricing.multiplier }}x)
+                                </small>
+                            </div>
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    <!-- Booking Form -->
+                    <div class="col-md-7">
+                        <form method="POST" action="{{ url_for('book_slot', slot_id=slot.id) }}">
+                            <h5 class="mb-3">Booking Details</h5>
+
+                            <div class="mb-3">
+                                <label for="vehicle_number" class="form-label">Vehicle Number</label>
+                                <input type="text" class="form-control" id="vehicle_number" name="vehicle_number"
+                                    placeholder="e.g., KL-01-AB-1234" required>
+                            </div>
+
+                            <div class="row">
+                                <div class="col-6 mb-3">
+                                    <label for="start_time" class="form-label">Start Time</label>
+                                    <input type="datetime-local" class="form-control" id="start_time" name="start_time"
+                                        required>
+                                </div>
+                                <div class="col-6 mb-3">
+                                    <label for="duration" class="form-label">Duration (hours)</label>
+                                    <select class="form-select" id="duration" name="duration" required>
+                                        <option value="1">1 hour</option>
+                                        <option value="2" selected>2 hours</option>
+                                        <option value="3">3 hours</option>
+                                        <option value="4">4 hours</option>
+                                        <option value="6">6 hours</option>
+                                        <option value="8">8 hours</option>
+                                    </select>
+                                </div>
+                            </div>
+
+                            <!-- Cancellation Risk -->
+                            <div class="mb-3 p-3 bg-light rounded">
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <span>
+                                        <i class="bi bi-shield-check me-2"></i>Cancellation Risk:
+                                    </span>
+                                    <span
+                                        class="badge bg-{{ 'success' if cancel_risk.level == 'Low' else 'warning' if cancel_risk.level == 'Medium' else 'danger' }}">
+                                        {{ cancel_risk.level }} ({{ cancel_risk.probability }}%)
+                                    </span>
+                                </div>
+                            </div>
+
+                            <!-- Price Summary -->
+                            <div class="mb-4 p-3 border rounded">
+                                <h6 class="mb-3">Price Estimate</h6>
+                                <div class="d-flex justify-content-between mb-2">
+                                    <span>Base rate:</span>
+                                    <span>₹{{ pricing.base_price }}/hr</span>
+                                </div>
+                                <div class="d-flex justify-content-between mb-2">
+                                    <span>Demand multiplier:</span>
+                                    <span>{{ pricing.multiplier }}x</span>
+                                </div>
+                                <hr>
+                                <div class="d-flex justify-content-between fw-bold">
+                                    <span>Estimated total (2 hrs):</span>
+                                    <span class="text-primary" id="total-price">₹{{ "%.2f"|format(pricing.hourly_rate *
+                                        2) }}</span>
+                                </div>
+                            </div>
+
+                            <div class="d-grid gap-2">
+                                <button type="submit" class="btn btn-primary py-2">
+                                    <i class="bi bi-check-circle me-2"></i>Confirm Booking
+                                </button>
+                                <a href="{{ url_for('dashboard') }}" class="btn btn-outline-secondary">
+                                    <i class="bi bi-arrow-left me-2"></i>Back to Dashboard
+                                </a>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% block extra_js %}
+<script>
+    // Update price based on duration selection
+    const durationSelect = document.getElementById('duration');
+    const totalPrice = document.getElementById('total-price');
+    const hourlyRate = {{ pricing.hourly_rate }};
+
+    durationSelect.addEventListener('change', function () {
+        const hours = parseInt(this.value);
+        const total = (hourlyRate * hours).toFixed(2);
+        totalPrice.textContent = '₹' + total;
+    });
+</script>
+{% endblock %}
+{% endblock %}

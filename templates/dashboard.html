@@ -1,0 +1,144 @@
+{% extends "base.html" %}
+{% block title %}Dashboard - ParkHub{% endblock %}
+
+{% block content %}
+<!-- Stats Row -->
+<div class="row mb-4">
+    <div class="col-md-3 mb-3">
+        <div class="card stat-card">
+            <div class="stat-value text-success">{{ stats.available }}</div>
+            <div class="stat-label">Available Slots</div>
+        </div>
+    </div>
+    <div class="col-md-3 mb-3">
+        <div class="card stat-card">
+            <div class="stat-value text-danger">{{ stats.occupied }}</div>
+            <div class="stat-label">Occupied</div>
+        </div>
+    </div>
+    <div class="col-md-3 mb-3">
+        <div class="card stat-card">
+            <div class="stat-value text-primary">{{ stats.total }}</div>
+            <div class="stat-label">Total Slots</div>
+        </div>
+    </div>
+    <div class="col-md-3 mb-3">
+        <div class="card stat-card">
+            <div class="stat-value">{{ stats.occupancy_rate }}%</div>
+            <div class="stat-label">Occupancy Rate</div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <!-- Parking Grid -->
+    <div class="col-lg-8 mb-4">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <span><i class="bi bi-grid-3x3-gap me-2"></i>Parking Slots</span>
+                <div>
+                    <span class="badge bg-success me-2">Available</span>
+                    <span class="badge bg-danger">Occupied</span>
+                </div>
+            </div>
+            <div class="card-body">
+                <div class="d-flex flex-wrap gap-3 justify-content-center">
+                    {% for slot in slots %}
+                    {% if slot.occupied %}
+                    <div class="parking-slot slot-occupied" title="{{ slot.id|format_slot }} - Occupied">
+                        <div class="text-center">
+                            <i class="bi bi-car-front-fill d-block mb-1"></i>
+                            {{ slot.id|format_slot }}
+                        </div>
+                    </div>
+                    {% else %}
+                    <a href="{{ url_for('book_slot', slot_id=slot.id) }}" class="parking-slot slot-available"
+                        title="Book {{ slot.id|format_slot }}">
+                        <div class="text-center">
+                            <i class="bi bi-plus-circle d-block mb-1"></i>
+                            {{ slot.id|format_slot }}
+                        </div>
+                    </a>
+                    {% endif %}
+                    {% endfor %}
+                </div>
+
+                <!-- Legend -->
+                <div class="mt-4 pt-3 border-top text-center">
+                    <small class="text-muted">
+                        <i class="bi bi-arrow-right-circle me-1"></i>
+                        Click on an available (green) slot to book
+                    </small>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ML Insights Sidebar -->
+    <div class="col-lg-4">
+        <!-- Best Time to Park -->
+        <div class="card info-card mb-3">
+            <div class="card-body">
+                <h6 class="mb-3">
+                    <i class="bi bi-clock me-2"></i>Best Time to Park
+                </h6>
+                <div class="mb-2">
+                    <strong>Today's Recommendation:</strong>
+                </div>
+                {% for time in best_times %}
+                <div class="d-flex justify-content-between align-items-center mb-2 p-2 bg-white bg-opacity-10 rounded">
+                    <span>{{ time.hour }}:00</span>
+                    <span class="badge bg-light text-dark">{{ time.occupancy }}% expected</span>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+
+        <!-- Current Demand Price -->
+        <div class="card mb-3">
+            <div class="card-body">
+                <h6 class="mb-3">
+                    <i class="bi bi-currency-rupee me-2"></i>Current Demand Price
+                </h6>
+                <div class="text-center py-2">
+                    <div class="price-tag">₹{{ pricing.hourly_rate }}/hr</div>
+                    {% if pricing.is_surge_pricing %}
+                    <span class="badge bg-warning text-dark">
+                        <i class="bi bi-lightning-fill me-1"></i>{{ pricing.tier }} Pricing
+                    </span>
+                    <div class="small text-muted mt-2">
+                        {{ pricing.multiplier }}x base rate due to {{ pricing.occupancy }}% demand
+                    </div>
+                    {% else %}
+                    <span class="badge bg-success">Standard Rate</span>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Recommended Slots -->
+        <div class="card">
+            <div class="card-body">
+                <h6 class="mb-3">
+                    <i class="bi bi-star me-2"></i>Recommended Slots
+                </h6>
+                {% if recommendations %}
+                <ul class="list-group list-group-flush">
+                    {% for rec in recommendations[:3] %}
+                    <li class="list-group-item d-flex justify-content-between align-items-center px-0">
+                        <span>
+                            <i class="bi bi-geo-alt text-primary me-1"></i>
+                            {{ rec.slot_id|format_slot }}
+                        </span>
+                        <span class="small text-muted">{{ rec.distance }}m from entry</span>
+                    </li>
+                    {% endfor %}
+                </ul>
+                {% else %}
+                <p class="text-muted mb-0">No slots available for recommendation</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

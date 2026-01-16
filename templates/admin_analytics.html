@@ -1,0 +1,324 @@
+{% extends "base.html" %}
+{% block title %}Admin Analytics - ParkHub{% endblock %}
+
+{% block content %}
+<h4 class="mb-4">
+    <i class="bi bi-bar-chart me-2"></i>Admin Analytics Dashboard
+</h4>
+
+<!-- Stats Overview -->
+<!-- Stats Overview -->
+<!-- Stats Overview -->
+<div class="row mb-4">
+    <div class="col-md-3 mb-3">
+        <div class="stat-card-clean">
+            <div class="d-flex justify-content-between align-items-start">
+                <div class="icon-box bg-blue-soft">
+                    <i class="bi bi-bookmark-check-fill"></i>
+                </div>
+            </div>
+            <div class="stat-value">{{ stats.total_bookings }}</div>
+            <div class="stat-label">Total Bookings</div>
+        </div>
+    </div>
+    <div class="col-md-3 mb-3">
+        <div class="stat-card-clean">
+            <div class="d-flex justify-content-between align-items-start">
+                <div class="icon-box bg-green-soft">
+                    <i class="bi bi-currency-rupee"></i>
+                </div>
+            </div>
+            <div class="stat-value">₹{{ stats.total_revenue }}</div>
+            <div class="stat-label">Total Revenue</div>
+        </div>
+    </div>
+    <div class="col-md-3 mb-3">
+        <div class="stat-card-clean">
+            <div class="d-flex justify-content-between align-items-start">
+                <div class="icon-box bg-orange-soft">
+                    <i class="bi bi-x-circle-fill"></i>
+                </div>
+            </div>
+            <div class="stat-value">{{ stats.cancellation_rate }}%</div>
+            <div class="stat-label">Cancellation Rate</div>
+        </div>
+    </div>
+    <div class="col-md-3 mb-3">
+        <div class="stat-card-clean">
+            <div class="d-flex justify-content-between align-items-start">
+                <div class="icon-box bg-purple-soft">
+                    <i class="bi bi-clock-history"></i>
+                </div>
+            </div>
+            <div class="stat-value">{{ stats.avg_duration }}h</div>
+            <div class="stat-label">Avg Duration</div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <!-- Anomaly Detection -->
+    <div class="col-lg-6 mb-4">
+        <div class="card h-100 shadow-sm">
+            <div class="card-header bg-danger text-white">
+                <i class="bi bi-exclamation-octagon me-2"></i>Anomaly Detection
+            </div>
+            <div class="card-body">
+                <p class="text-muted mb-3">
+                    Bookings flagged by our AI as having unusual patterns.
+                </p>
+
+                {% if anomalies %}
+                <div class="table-responsive">
+                    <table class="table table-sm mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Booking</th>
+                                <th>Duration</th>
+                                <th>Time</th>
+                                <th>Score</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for anomaly in anomalies %}
+                            <tr>
+                                <td>
+                                    <i class="bi bi-exclamation-triangle text-danger me-1"></i>
+                                    {{ anomaly.slot_id|format_slot }}
+                                </td>
+                                <td>{{ anomaly.duration_hours }}h</td>
+                                <td>{{ anomaly.hour }}:00</td>
+                                <td>
+                                    <span class="badge bg-danger">{{ anomaly.anomaly_score }}</span>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <div class="text-center py-4">
+                    <i class="bi bi-check-circle text-success" style="font-size: 3rem;"></i>
+                    <p class="mt-2 mb-0">No anomalies detected</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Slot Utilization -->
+    <div class="col-lg-6 mb-4">
+        <div class="card h-100 shadow-sm">
+            <div class="card-header">
+                <i class="bi bi-pie-chart me-2"></i>Slot Utilization
+            </div>
+            <div class="card-body">
+                {% for slot in slot_utilization %}
+                <div class="mb-3">
+                    <div class="d-flex justify-content-between mb-1">
+                        <span>{{ slot.slot_id|format_slot }}</span>
+                        <span>{{ slot.utilization }}%</span>
+                    </div>
+                    <div class="progress" style="height: 8px;">
+                        <div class="progress-bar 
+                            {% if slot.utilization > 80 %}bg-danger
+                            {% elif slot.utilization > 50 %}bg-warning
+                            {% else %}bg-success{% endif %}" style="width: {{ slot.utilization }}%">
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Peak Hours Analysis -->
+<div class="row">
+    <div class="col-12 mb-4">
+        <div class="card shadow-sm">
+            <div class="card-header">
+                <i class="bi bi-graph-up-arrow me-2"></i>Peak Hours Analysis
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    {% for day in peak_analysis %}
+                    <div class="col-md mb-3 mb-md-0">
+                        <div class="text-center p-3 rounded 
+                            {% if day.is_today %}border border-primary{% endif %}" style="background: #f8fafc;">
+                            <div class="fw-bold mb-2">{{ day.name }}</div>
+                            <div class="small text-muted mb-2">Peak: {{ day.peak_hour }}:00</div>
+                            <div class="badge 
+                                {% if day.peak_occupancy > 80 %}bg-danger
+                                {% elif day.peak_occupancy > 60 %}bg-warning
+                                {% else %}bg-success{% endif %}">
+                                {{ day.peak_occupancy }}%
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Model Performance Metrics -->
+<div class="row">
+    <div class="col-12 mb-4">
+        <div class="card shadow-sm">
+            <div class="card-header bg-gradient-dark text-white"
+                style="background: linear-gradient(45deg, #2c3e50, #3498db);">
+                <i class="bi bi-cpu me-2"></i>AI Model Performance Metrics
+            </div>
+            <div class="card-body">
+                <div class="row text-center">
+                    <div class="col-md-4 mb-3 mb-md-0 border-end">
+                        <h6 class="text-muted mb-2">Peak Hour Prediction (R²)</h6>
+                        <div class="display-6 fw-bold text-primary">
+                            {{ "%.1f"|format(model_metrics.peak_hour_r2 * 100) }}%
+                        </div>
+                        {% if model_metrics.is_demo %}
+                        <div class="badge bg-warning text-dark mt-2">Demo Data</div>
+                        {% else %}
+                        <div class="small text-muted mt-2">Real Confidence</div>
+                        {% endif %}
+                    </div>
+                    <div class="col-md-4 mb-3 mb-md-0 border-end">
+                        <h6 class="text-muted mb-2">Cancellation Prediction (Acc)</h6>
+                        <div class="display-6 fw-bold text-success">
+                            {{ "%.1f"|format(model_metrics.cancellation_acc * 100) }}%
+                        </div>
+                        <div class="small text-success mt-2">High Accuracy</div>
+                    </div>
+                    <div class="col-md-4">
+                        <h6 class="text-muted mb-2">Anomaly Detection (F1)</h6>
+                        <div class="display-6 fw-bold text-info">
+                            {{ "%.1f"|format(model_metrics.anomaly_f1 * 100) }}%
+                        </div>
+                        <div class="small text-muted mt-2">Harmonic Mean</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Recent Bookings -->
+<div class="row">
+    <div class="col-12">
+        <div class="card shadow-sm">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <span><i class="bi bi-clock-history me-2"></i>Recent Bookings</span>
+                <span class="badge bg-secondary">Last 10</span>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-hover mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Time</th>
+                                <th>Slot</th>
+                                <th>User</th>
+                                <th>Duration</th>
+                                <th>Status</th>
+                                <th>Revenue</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for booking in recent_bookings %}
+                            <tr>
+                                <td>{{ booking.timestamp }}</td>
+                                <td>{{ booking.slot_id|format_slot }}</td>
+                                <td>{{ booking.user_id }}</td>
+                                <td>{{ booking.duration_hours }}h</td>
+                                <td>
+                                    {% if booking.cancelled %}
+                                    <span class="badge bg-danger">Cancelled</span>
+                                    {% else %}
+                                    <span class="badge bg-success">Completed</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if booking.cancelled %}
+                                    <span class="text-muted">-</span>
+                                    {% else %}
+                                    ₹{{ "%.2f"|format(booking.duration_hours * 50) }}
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .stat-card-clean {
+        background: #fff;
+        border: 1px solid rgba(0, 0, 0, 0.05);
+        border-radius: 12px;
+        padding: 1.5rem;
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.03);
+        transition: all 0.3s ease;
+        height: 100%;
+        position: relative;
+    }
+
+    .stat-card-clean:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 10px 25px rgba(0, 0, 0, 0.08);
+    }
+
+    .icon-box {
+        width: 54px;
+        height: 54px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 14px;
+        font-size: 1.6rem;
+        margin-bottom: 1rem;
+    }
+
+    .bg-blue-soft {
+        background: rgba(52, 152, 219, 0.1);
+        color: #3498db;
+    }
+
+    .bg-green-soft {
+        background: rgba(46, 204, 113, 0.1);
+        color: #2ecc71;
+    }
+
+    .bg-orange-soft {
+        background: rgba(255, 107, 107, 0.1);
+        color: #ff6b6b;
+    }
+
+    .bg-purple-soft {
+        background: rgba(155, 89, 182, 0.1);
+        color: #9b59b6;
+    }
+
+    .stat-value {
+        font-weight: 700;
+        font-size: 2.2rem;
+        color: #2c3e50;
+        margin-bottom: 0px;
+        line-height: 1.2;
+    }
+
+    .stat-label {
+        color: #7f8c8d;
+        font-size: 0.8rem;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        font-weight: 600;
+        margin-top: 0.25rem;
+    }
+</style>
+{% endblock %}

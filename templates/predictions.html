@@ -1,0 +1,193 @@
+{% extends "base.html" %}
+{% block title %}Predictions - ParkHub{% endblock %}
+
+{% block content %}
+<h4 class="mb-4">
+    <i class="bi bi-graph-up me-2"></i>AI Predictions & Analytics
+</h4>
+
+<div class="row">
+    <!-- Weekly Occupancy Forecast -->
+    <div class="col-lg-8 mb-4">
+        <div class="card">
+            <div class="card-header">
+                <i class="bi bi-calendar-week me-2"></i>Weekly Occupancy Forecast
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-hover mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Day</th>
+                                <th>Peak Hours</th>
+                                <th>Expected Occupancy</th>
+                                <th>Recommendation</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for day in weekly_forecast %}
+                            <tr>
+                                <td class="fw-medium">{{ day.name }}</td>
+                                <td>
+                                    {% for hour in day.peak_hours %}
+                                    <span class="badge bg-danger me-1">{{ hour }}:00</span>
+                                    {% endfor %}
+                                </td>
+                                <td>
+                                    <div class="progress" style="height: 20px;">
+                                        <div class="progress-bar 
+                                            {% if day.avg_occupancy > 80 %}bg-danger
+                                            {% elif day.avg_occupancy > 60 %}bg-warning
+                                            {% else %}bg-success{% endif %}" style="width: {{ day.avg_occupancy }}%">
+                                            {{ day.avg_occupancy }}%
+                                        </div>
+                                    </div>
+                                </td>
+                                <td>
+                                    <span class="text-muted small">{{ day.recommendation }}</span>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Price Prediction -->
+    <div class="col-lg-4 mb-4">
+        <div class="card">
+            <div class="card-header">
+                <i class="bi bi-currency-rupee me-2"></i>Dynamic Pricing Tiers
+            </div>
+            <div class="card-body">
+                <div class="mb-3 p-3 border-start border-success border-4 bg-light">
+                    <div class="d-flex justify-content-between">
+                        <strong>Standard</strong>
+                        <span>₹50.00/hr</span>
+                    </div>
+                    <small class="text-muted">Below 50% occupancy</small>
+                </div>
+
+                <div class="mb-3 p-3 border-start border-info border-4 bg-light">
+                    <div class="d-flex justify-content-between">
+                        <strong>Moderate</strong>
+                        <span>₹50.00/hr</span>
+                    </div>
+                    <small class="text-muted">50% - 70% occupancy</small>
+                </div>
+
+                <div class="mb-3 p-3 border-start border-warning border-4 bg-light">
+                    <div class="d-flex justify-content-between">
+                        <strong>Peak</strong>
+                        <span>₹60.00 - ₹75.00/hr</span>
+                    </div>
+                    <small class="text-muted">70% - 85% occupancy</small>
+                </div>
+
+                <div class="p-3 border-start border-danger border-4 bg-light">
+                    <div class="d-flex justify-content-between">
+                        <strong>Premium</strong>
+                        <span>₹75.00 - ₹100.00/hr</span>
+                    </div>
+                    <small class="text-muted">Above 85% occupancy</small>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Hourly Predictions -->
+<div class="row">
+    <div class="col-12 mb-4">
+        <div class="card">
+            <div class="card-header">
+                <i class="bi bi-clock me-2"></i>Today's Hourly Predictions
+            </div>
+            <div class="card-body">
+                <div class="d-flex flex-wrap gap-2 justify-content-center">
+                    {% for hour in hourly_predictions %}
+                    <div class="text-center p-2 rounded 
+                        {% if hour.occupancy > 80 %}bg-danger text-white
+                        {% elif hour.occupancy > 60 %}bg-warning
+                        {% elif hour.occupancy > 40 %}bg-info text-white
+                        {% else %}bg-success text-white{% endif %}" style="min-width: 70px;">
+                        <div class="small fw-bold">{{ hour.time }}</div>
+                        <div>{{ hour.occupancy }}%</div>
+                    </div>
+                    {% endfor %}
+                </div>
+
+                <div class="mt-4 d-flex justify-content-center gap-4 text-center">
+                    <div>
+                        <span class="badge bg-success">&nbsp;</span>
+                        <small class="ms-1 text-muted">Low (0-40%)</small>
+                    </div>
+                    <div>
+                        <span class="badge bg-info">&nbsp;</span>
+                        <small class="ms-1 text-muted">Moderate (40-60%)</small>
+                    </div>
+                    <div>
+                        <span class="badge bg-warning">&nbsp;</span>
+                        <small class="ms-1 text-muted">High (60-80%)</small>
+                    </div>
+                    <div>
+                        <span class="badge bg-danger">&nbsp;</span>
+                        <small class="ms-1 text-muted">Peak (80%+)</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Best Parking Times -->
+<div class="row">
+    <div class="col-md-6 mb-4">
+        <div class="card h-100">
+            <div class="card-header bg-success text-white">
+                <i class="bi bi-hand-thumbs-up me-2"></i>Best Times to Park Today
+            </div>
+            <div class="card-body">
+                <ul class="list-group list-group-flush">
+                    {% for time in best_times %}
+                    <li class="list-group-item d-flex justify-content-between align-items-center">
+                        <span>
+                            <i class="bi bi-clock me-2"></i>{{ time.hour }}:00
+                        </span>
+                        <span>
+                            <span class="badge bg-success">{{ time.occupancy }}% expected</span>
+                            <span class="badge bg-light text-dark ms-1">₹{{ time.price }}/hr</span>
+                        </span>
+                    </li>
+                    {% endfor %}
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-6 mb-4">
+        <div class="card h-100">
+            <div class="card-header bg-danger text-white">
+                <i class="bi bi-exclamation-triangle me-2"></i>Avoid These Times
+            </div>
+            <div class="card-body">
+                <ul class="list-group list-group-flush">
+                    {% for time in worst_times %}
+                    <li class="list-group-item d-flex justify-content-between align-items-center">
+                        <span>
+                            <i class="bi bi-clock me-2"></i>{{ time.hour }}:00
+                        </span>
+                        <span>
+                            <span class="badge bg-danger">{{ time.occupancy }}% expected</span>
+                            <span class="badge bg-light text-dark ms-1">₹{{ time.price }}/hr</span>
+                        </span>
+                    </li>
+                    {% endfor %}
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

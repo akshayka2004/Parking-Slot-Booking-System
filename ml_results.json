@@ -1,0 +1,22 @@
+{
+  "data_size": 1000,
+  "peak_hour": {
+    "r2": 0.5301,
+    "mae": 0.1648
+  },
+  "cancellation": {
+    "accuracy": 0.715,
+    "auc_roc": 0.7631,
+    "precision": 0.6941,
+    "recall": 0.6556,
+    "f1": 0.6743
+  },
+  "anomaly": {
+    "accuracy": 0.99,
+    "precision": 0.93,
+    "recall": 0.9688,
+    "f1": 0.949,
+    "detected": 100,
+    "actual": 96
+  }
+}
