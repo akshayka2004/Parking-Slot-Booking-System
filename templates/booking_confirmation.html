@@ -1,0 +1,162 @@
+{% extends "base.html" %}
+{% block title %}Booking Confirmed - ParkHub{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-lg-8">
+        <!-- Success Animation -->
+        <div class="text-center mb-4">
+            <div class="confirmation-checkmark">
+                <svg class="checkmark" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 52 52">
+                    <circle class="checkmark__circle" cx="26" cy="26" r="25" fill="none" />
+                    <path class="checkmark__check" fill="none" d="M14.1 27.2l7.1 7.2 16.7-16.8" />
+                </svg>
+            </div>
+            <h2 class="text-success mt-3 mb-2">Booking Confirmed!</h2>
+            <p class="text-muted">Your parking slot has been successfully reserved.</p>
+        </div>
+
+        <!-- Booking Details Card -->
+        <div class="card shadow-lg border-0 mb-4">
+            <div class="card-header bg-gradient text-white"
+                style="background: linear-gradient(135deg, #2563eb 0%, #1e40af 100%);">
+                <h5 class="mb-0">
+                    <i class="bi bi-receipt me-2"></i>Booking Receipt
+                </h5>
+            </div>
+            <div class="card-body p-4">
+                <div class="row">
+                    <!-- Booking Info -->
+                    <div class="col-md-6 mb-4 mb-md-0">
+                        <h6 class="text-muted mb-3">Booking Information</h6>
+                        <div class="d-flex justify-content-between py-2 border-bottom">
+                            <span class="text-muted">Booking ID:</span>
+                            <span class="fw-bold">#{{ booking.id }}</span>
+                        </div>
+                        <div class="d-flex justify-content-between py-2 border-bottom">
+                            <span class="text-muted">Status:</span>
+                            <span class="badge bg-success">{{ booking.status|upper }}</span>
+                        </div>
+                        <div class="d-flex justify-content-between py-2 border-bottom">
+                            <span class="text-muted">Slot:</span>
+                            <span class="fw-bold text-primary">
+                                <i class="bi bi-geo-alt me-1"></i>
+                                {{ booking.slot.slot_number|format_slot if booking.slot else 'N/A' }}
+                            </span>
+                        </div>
+                        <div class="d-flex justify-content-between py-2">
+                            <span class="text-muted">Vehicle:</span>
+                            <span class="fw-bold">{{ booking.vehicle_number }}</span>
+                        </div>
+                    </div>
+
+                    <!-- Time & Price Info -->
+                    <div class="col-md-6">
+                        <h6 class="text-muted mb-3">Time & Payment</h6>
+                        <div class="d-flex justify-content-between py-2 border-bottom">
+                            <span class="text-muted">Start Time:</span>
+                            <span>{{ booking.start_time.strftime('%d %b %Y, %I:%M %p') }}</span>
+                        </div>
+                        <div class="d-flex justify-content-between py-2 border-bottom">
+                            <span class="text-muted">End Time:</span>
+                            <span>{{ booking.end_time.strftime('%d %b %Y, %I:%M %p') }}</span>
+                        </div>
+                        <div class="d-flex justify-content-between py-2 border-bottom">
+                            <span class="text-muted">Duration:</span>
+                            <span>{{ booking.duration_hours|int }} hour(s)</span>
+                        </div>
+                        <div class="d-flex justify-content-between py-2">
+                            <span class="text-muted">Total Amount:</span>
+                            <span class="fw-bold text-success fs-5">₹{{ "%.2f"|format(booking.total_price) }}</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Action Buttons -->
+        <div class="d-flex flex-column flex-sm-row gap-3 justify-content-center">
+            <a href="{{ url_for('download_receipt', booking_id=booking.id) }}" class="btn btn-success btn-lg px-4">
+                <i class="bi bi-download me-2"></i>Download Receipt (PDF)
+            </a>
+            <a href="{{ url_for('my_bookings') }}" class="btn btn-outline-primary btn-lg px-4">
+                <i class="bi bi-list-ul me-2"></i>View All Bookings
+            </a>
+            <a href="{{ url_for('dashboard') }}" class="btn btn-outline-secondary btn-lg px-4">
+                <i class="bi bi-grid me-2"></i>Back to Dashboard
+            </a>
+        </div>
+
+        <!-- Info Note -->
+        <div class="alert alert-info mt-4 text-center">
+            <i class="bi bi-info-circle me-2"></i>
+            Please arrive at least 10 minutes before your booking start time.
+            Keep your receipt handy for verification.
+        </div>
+    </div>
+</div>
+
+<style>
+    /* Checkmark Animation */
+    .confirmation-checkmark {
+        width: 100px;
+        height: 100px;
+        margin: 0 auto;
+    }
+
+    .checkmark {
+        width: 100px;
+        height: 100px;
+        border-radius: 50%;
+        display: block;
+        stroke-width: 2;
+        stroke: #16a34a;
+        stroke-miterlimit: 10;
+        animation: scale .3s ease-in-out .9s both;
+    }
+
+    .checkmark__circle {
+        stroke-dasharray: 166;
+        stroke-dashoffset: 166;
+        stroke-width: 2;
+        stroke-miterlimit: 10;
+        stroke: #16a34a;
+        fill: none;
+        animation: stroke .6s cubic-bezier(.65, 0, .45, 1) forwards;
+    }
+
+    .checkmark__check {
+        transform-origin: 50% 50%;
+        stroke-dasharray: 48;
+        stroke-dashoffset: 48;
+        animation: stroke .3s cubic-bezier(.65, 0, .45, 1) .8s forwards;
+    }
+
+    @keyframes stroke {
+        100% {
+            stroke-dashoffset: 0;
+        }
+    }
+
+    @keyframes scale {
+
+        0%,
+        100% {
+            transform: none;
+        }
+
+        50% {
+            transform: scale3d(1.1, 1.1, 1);
+        }
+    }
+
+    /* Card hover effect */
+    .card {
+        transition: transform 0.2s ease, box-shadow 0.2s ease;
+    }
+
+    .card:hover {
+        transform: translateY(-2px);
+    }
+</style>
+{% endblock %}

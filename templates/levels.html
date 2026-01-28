@@ -1,0 +1,387 @@
+{% extends "base.html" %}
+{% block title %}{{ lot.name }} - Select Level - ParkHub{% endblock %}
+
+{% block content %}
+<style>
+    /* Breadcrumb */
+    .breadcrumb-nav {
+        background: white;
+        border-radius: 12px;
+        padding: 15px 20px;
+        margin-bottom: 25px;
+        box-shadow: 0 2px 10px rgba(99, 102, 241, 0.08);
+    }
+
+    .breadcrumb-nav a {
+        color: #6366F1;
+        text-decoration: none;
+        font-weight: 600;
+    }
+
+    .breadcrumb-nav a:hover {
+        text-decoration: underline;
+    }
+
+    .breadcrumb-nav .separator {
+        color: #CBD5E1;
+        margin: 0 10px;
+    }
+
+    .breadcrumb-nav .current {
+        color: #64748B;
+        font-weight: 600;
+    }
+
+    /* 3D Building Visualization */
+    .building-visual-container {
+        background: linear-gradient(135deg, #1E293B 0%, #0F172A 100%);
+        border-radius: 24px;
+        padding: 40px;
+        margin-bottom: 30px;
+        position: relative;
+        overflow: hidden;
+        min-height: 350px;
+    }
+
+    .building-visual-container::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background:
+            radial-gradient(circle at 20% 80%, rgba(99, 102, 241, 0.15) 0%, transparent 50%),
+            radial-gradient(circle at 80% 20%, rgba(236, 72, 153, 0.1) 0%, transparent 50%);
+    }
+
+    .building-content {
+        position: relative;
+        z-index: 1;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 40px;
+    }
+
+    .building-info {
+        flex: 1;
+        color: white;
+    }
+
+    .building-info h2 {
+        font-size: 2rem;
+        font-weight: 800;
+        margin-bottom: 10px;
+    }
+
+    .building-info p {
+        opacity: 0.8;
+        font-size: 1rem;
+        margin-bottom: 20px;
+    }
+
+    .building-stats {
+        display: flex;
+        gap: 20px;
+    }
+
+    .building-stat {
+        text-align: center;
+    }
+
+    .building-stat-value {
+        font-size: 2rem;
+        font-weight: 800;
+        background: linear-gradient(135deg, #6366F1, #EC4899);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+    }
+
+    .building-stat-label {
+        font-size: 0.75rem;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        opacity: 0.7;
+    }
+
+    /* 3D Building Structure */
+    .building-3d-wrapper {
+        perspective: 800px;
+    }
+
+    .building-3d-structure {
+        transform-style: preserve-3d;
+        transform: rotateX(15deg) rotateY(-25deg);
+        width: 250px;
+    }
+
+    .level-3d {
+        height: 60px;
+        background: linear-gradient(135deg, #475569 0%, #64748B 100%);
+        border: 3px solid #94A3B8;
+        border-radius: 8px;
+        margin-bottom: 8px;
+        display: flex;
+        align-items: center;
+        padding: 0 15px;
+        position: relative;
+        transform: translateZ(calc(var(--level-index) * 8px));
+        box-shadow:
+            0 8px 16px rgba(0, 0, 0, 0.4),
+            inset 0 1px 0 rgba(255, 255, 255, 0.1);
+        cursor: pointer;
+        transition: all 0.3s ease;
+    }
+
+    .level-3d:hover {
+        background: linear-gradient(135deg, #6366F1 0%, #8B5CF6 100%);
+        border-color: #A5B4FC;
+        transform: translateZ(calc(var(--level-index) * 8px)) scale(1.02);
+    }
+
+    .level-3d-label {
+        color: white;
+        font-weight: 800;
+        font-size: 1.1rem;
+        margin-right: 15px;
+    }
+
+    .level-3d-slots {
+        display: flex;
+        gap: 4px;
+        flex: 1;
+    }
+
+    .slot-mini {
+        width: 16px;
+        height: 28px;
+        border-radius: 3px;
+        background: #10B981;
+    }
+
+    .slot-mini.occupied {
+        background: #EF4444;
+    }
+
+    .level-3d-count {
+        color: white;
+        font-size: 0.8rem;
+        font-weight: 600;
+        background: rgba(0, 0, 0, 0.3);
+        padding: 4px 10px;
+        border-radius: 10px;
+    }
+
+    /* Level Selection Cards */
+    .level-cards {
+        margin-top: 20px;
+    }
+
+    .level-card {
+        background: white;
+        border-radius: 16px;
+        padding: 25px;
+        box-shadow: 0 4px 20px rgba(99, 102, 241, 0.1);
+        transition: all 0.3s ease;
+        border: 2px solid transparent;
+        margin-bottom: 15px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+    }
+
+    .level-card:hover {
+        border-color: #6366F1;
+        transform: translateX(8px);
+        box-shadow: 0 10px 30px rgba(99, 102, 241, 0.2);
+    }
+
+    .level-card-info {
+        display: flex;
+        align-items: center;
+        gap: 20px;
+    }
+
+    .level-badge {
+        width: 60px;
+        height: 60px;
+        background: linear-gradient(135deg, #6366F1, #8B5CF6);
+        border-radius: 14px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: white;
+        font-size: 1.5rem;
+        font-weight: 800;
+    }
+
+    .level-details h4 {
+        font-size: 1.2rem;
+        font-weight: 800;
+        color: #1E293B;
+        margin: 0 0 5px;
+    }
+
+    .level-details p {
+        color: #64748B;
+        margin: 0;
+        font-size: 0.9rem;
+    }
+
+    .level-card-stats {
+        display: flex;
+        align-items: center;
+        gap: 30px;
+    }
+
+    .level-stat {
+        text-align: center;
+    }
+
+    .level-stat-value {
+        font-size: 1.5rem;
+        font-weight: 800;
+        color: #10B981;
+    }
+
+    .level-stat-value.occupied {
+        color: #EF4444;
+    }
+
+    .level-stat-label {
+        font-size: 0.7rem;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        color: #94A3B8;
+    }
+
+    /* Progress Bar */
+    .level-occupancy-bar {
+        width: 120px;
+        height: 8px;
+        background: #E2E8F0;
+        border-radius: 10px;
+        overflow: hidden;
+    }
+
+    .level-occupancy-fill {
+        height: 100%;
+        background: linear-gradient(90deg, #10B981, #EF4444);
+        border-radius: 10px;
+        transition: width 0.3s ease;
+    }
+
+    .btn-enter-level {
+        background: linear-gradient(135deg, #6366F1, #8B5CF6);
+        border: none;
+        border-radius: 12px;
+        padding: 12px 24px;
+        color: white;
+        font-weight: 700;
+        transition: all 0.3s ease;
+    }
+
+    .btn-enter-level:hover {
+        transform: scale(1.05);
+        box-shadow: 0 8px 20px rgba(99, 102, 241, 0.3);
+        color: white;
+    }
+</style>
+
+<!-- Breadcrumb -->
+<div class="breadcrumb-nav">
+    <a href="{{ url_for('locations') }}"><i class="bi bi-geo-alt me-1"></i>Locations</a>
+    <span class="separator">/</span>
+    <a href="{{ url_for('parking_lots', location_id=location.id) }}">{{ location.name }}</a>
+    <span class="separator">/</span>
+    <span class="current">{{ lot.name }}</span>
+</div>
+
+<!-- 3D Building Visual -->
+<div class="building-visual-container">
+    <div class="building-content">
+        <div class="building-info">
+            <h2><i class="bi bi-building me-2"></i>{{ lot.name }}</h2>
+            <p>{{ lot.description }}</p>
+            <div class="building-stats">
+                <div class="building-stat">
+                    <div class="building-stat-value">{{ levels|length }}</div>
+                    <div class="building-stat-label">Levels</div>
+                </div>
+                <div class="building-stat">
+                    <div class="building-stat-value">{{ levels|sum(attribute='total') }}</div>
+                    <div class="building-stat-label">Total Slots</div>
+                </div>
+                <div class="building-stat">
+                    <div class="building-stat-value">{{ levels|sum(attribute='available') }}</div>
+                    <div class="building-stat-label">Available</div>
+                </div>
+            </div>
+            <div class="mt-3">
+                <span class="badge" style="background: rgba(255,255,255,0.2); color: white;">{{ config_name }}
+                    Configuration</span>
+            </div>
+        </div>
+
+        <!-- 3D Building Structure -->
+        <div class="building-3d-wrapper">
+            <div class="building-3d-structure">
+                {% for level in levels|reverse %}
+                <a href="{{ url_for('level_dashboard', level_id=level.id) }}" style="text-decoration:none">
+                    <div class="level-3d" style="--level-index: {{ loop.index }}">
+                        <span class="level-3d-label">{{ level.name }}</span>
+                        <div class="level-3d-slots">
+                            {% set occupied_count = level.total - level.available %}
+                            {% for i in range(8) %}
+                            <div
+                                class="slot-mini {% if i < (occupied_count / level.total * 8)|int %}occupied{% endif %}">
+                            </div>
+                            {% endfor %}
+                        </div>
+                        <span class="level-3d-count">{{ level.available }}/{{ level.total }}</span>
+                    </div>
+                </a>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Level Selection Cards -->
+<h4 class="mb-3 fw-bold"><i class="bi bi-layers me-2 text-primary"></i>Select a Level</h4>
+<div class="level-cards">
+    {% for level in levels %}
+    <div class="level-card">
+        <div class="level-card-info">
+            <div class="level-badge">{{ level.name }}</div>
+            <div class="level-details">
+                <h4>Level {{ level.name }}</h4>
+                <p>{{ level.rows }}×{{ level.columns }} grid • {{ level.total }} slots</p>
+            </div>
+        </div>
+        <div class="level-card-stats">
+            <div class="level-stat">
+                <div class="level-stat-value">{{ level.available }}</div>
+                <div class="level-stat-label">Available</div>
+            </div>
+            <div class="level-stat">
+                <div class="level-stat-value occupied">{{ level.total - level.available }}</div>
+                <div class="level-stat-label">Occupied</div>
+            </div>
+            <div>
+                <div class="level-occupancy-bar">
+                    <div class="level-occupancy-fill" style="width: {{ level.occupancy_rate }}%"></div>
+                </div>
+                <div class="text-center mt-1" style="font-size: 0.7rem; color: #94A3B8;">{{ level.occupancy_rate }}%
+                    Full</div>
+            </div>
+            <a href="{{ url_for('level_dashboard', level_id=level.id) }}" class="btn btn-enter-level">
+                <i class="bi bi-arrow-right me-1"></i>Enter
+            </a>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+{% endblock %}

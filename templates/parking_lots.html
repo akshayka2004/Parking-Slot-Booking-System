@@ -1,0 +1,324 @@
+{% extends "base.html" %}
+{% block title %}{{ location.name }} - Parking Lots - ParkHub{% endblock %}
+
+{% block content %}
+<style>
+    /* Breadcrumb */
+    .breadcrumb-nav {
+        background: white;
+        border-radius: 12px;
+        padding: 15px 20px;
+        margin-bottom: 25px;
+        box-shadow: 0 2px 10px rgba(99, 102, 241, 0.08);
+    }
+
+    .breadcrumb-nav a {
+        color: #6366F1;
+        text-decoration: none;
+        font-weight: 600;
+    }
+
+    .breadcrumb-nav a:hover {
+        text-decoration: underline;
+    }
+
+    .breadcrumb-nav .separator {
+        color: #CBD5E1;
+        margin: 0 10px;
+    }
+
+    .breadcrumb-nav .current {
+        color: #64748B;
+        font-weight: 600;
+    }
+
+    /* Location Header */
+    .location-header {
+        background: linear-gradient(135deg, #1E293B 0%, #334155 100%);
+        border-radius: 20px;
+        padding: 35px;
+        color: white;
+        margin-bottom: 30px;
+        display: flex;
+        align-items: center;
+        gap: 25px;
+    }
+
+    .location-header-icon {
+        width: 70px;
+        height: 70px;
+        background: linear-gradient(135deg, #6366F1, #8B5CF6);
+        border-radius: 16px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 2rem;
+    }
+
+    .location-header h2 {
+        margin: 0;
+        font-size: 1.8rem;
+        font-weight: 800;
+    }
+
+    .location-header p {
+        margin: 5px 0 0;
+        opacity: 0.8;
+    }
+
+    /* Parking Lot Cards with 3D Visual */
+    .lot-card {
+        background: white;
+        border-radius: 20px;
+        overflow: hidden;
+        box-shadow: 0 4px 20px rgba(99, 102, 241, 0.1);
+        transition: all 0.4s ease;
+        height: 100%;
+    }
+
+    .lot-card:hover {
+        transform: translateY(-8px);
+        box-shadow: 0 20px 40px rgba(99, 102, 241, 0.2);
+    }
+
+    /* 3D Parking Structure Visual */
+    .parking-structure-3d {
+        height: 200px;
+        background: linear-gradient(135deg, #1E293B 0%, #334155 100%);
+        position: relative;
+        display: flex;
+        align-items: flex-end;
+        justify-content: center;
+        padding: 20px;
+        perspective: 500px;
+    }
+
+    .building-3d {
+        width: 180px;
+        transform-style: preserve-3d;
+        transform: rotateX(10deg) rotateY(-15deg);
+    }
+
+    .floor-3d {
+        height: 35px;
+        background: linear-gradient(135deg, #475569, #64748B);
+        border: 2px solid #94A3B8;
+        border-radius: 4px;
+        margin-bottom: 4px;
+        display: flex;
+        align-items: center;
+        justify-content: space-around;
+        padding: 0 8px;
+        position: relative;
+        transform: translateZ(calc(var(--floor-index) * 5px));
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+    }
+
+    .floor-3d::before {
+        content: attr(data-level);
+        position: absolute;
+        left: -25px;
+        color: white;
+        font-weight: 700;
+        font-size: 0.7rem;
+    }
+
+    .floor-slots {
+        display: flex;
+        gap: 3px;
+    }
+
+    .mini-slot {
+        width: 12px;
+        height: 20px;
+        border-radius: 2px;
+        background: #10B981;
+    }
+
+    .mini-slot.occupied {
+        background: #EF4444;
+    }
+
+    /* Lot Info */
+    .lot-info {
+        padding: 25px;
+    }
+
+    .lot-name {
+        font-size: 1.4rem;
+        font-weight: 800;
+        color: #1E293B;
+        margin-bottom: 8px;
+    }
+
+    .lot-description {
+        color: #64748B;
+        font-size: 0.9rem;
+        margin-bottom: 20px;
+    }
+
+    /* Level Pills */
+    .level-pills {
+        display: flex;
+        gap: 10px;
+        margin-bottom: 20px;
+        flex-wrap: wrap;
+    }
+
+    .level-pill {
+        background: linear-gradient(135deg, #EEF2FF, #FCE7F3);
+        border-radius: 20px;
+        padding: 8px 16px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        font-size: 0.85rem;
+        font-weight: 600;
+        color: #475569;
+    }
+
+    .level-pill .level-name {
+        color: #6366F1;
+        font-weight: 700;
+    }
+
+    .level-pill .level-avail {
+        background: #10B981;
+        color: white;
+        padding: 2px 8px;
+        border-radius: 10px;
+        font-size: 0.75rem;
+    }
+
+    /* Stats Row */
+    .lot-stats {
+        display: flex;
+        gap: 15px;
+        margin-bottom: 20px;
+    }
+
+    .lot-stat {
+        flex: 1;
+        text-align: center;
+        padding: 12px;
+        background: #F8FAFC;
+        border-radius: 10px;
+    }
+
+    .lot-stat-value {
+        font-size: 1.3rem;
+        font-weight: 800;
+        color: #6366F1;
+    }
+
+    .lot-stat-label {
+        font-size: 0.7rem;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        color: #94A3B8;
+        font-weight: 600;
+    }
+
+    .btn-select-lot {
+        width: 100%;
+        background: linear-gradient(135deg, #6366F1, #8B5CF6);
+        border: none;
+        border-radius: 12px;
+        padding: 14px;
+        color: white;
+        font-weight: 700;
+        transition: all 0.3s ease;
+    }
+
+    .btn-select-lot:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 10px 25px rgba(99, 102, 241, 0.3);
+        color: white;
+    }
+</style>
+
+<!-- Breadcrumb -->
+<div class="breadcrumb-nav">
+    <a href="{{ url_for('locations') }}"><i class="bi bi-geo-alt me-1"></i>Locations</a>
+    <span class="separator">/</span>
+    <span class="current">{{ location.name }}</span>
+</div>
+
+<!-- Location Header -->
+<div class="location-header">
+    <div class="location-header-icon">
+        <i class="bi {{ location.icon }}"></i>
+    </div>
+    <div>
+        <h2>{{ location.name }}</h2>
+        <p><i class="bi bi-pin-map me-2"></i>{{ location.address }}</p>
+    </div>
+</div>
+
+<!-- Parking Lot Cards -->
+<div class="row g-4">
+    {% for lot in lots %}
+    <div class="col-md-6">
+        <div class="lot-card">
+            <!-- 3D Parking Structure Visual -->
+            <div class="parking-structure-3d">
+                <div class="building-3d">
+                    {% for level in lot.levels|reverse %}
+                    <div class="floor-3d" data-level="Level {{ level.name }}" style="--floor-index: {{ loop.index }}">
+                        <div class="floor-slots">
+                            {% for i in range(8) %}
+                            <div
+                                class="mini-slot {% if i < (8 - (level.available / level.total * 8)|int) %}occupied{% endif %}">
+                            </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+
+            <div class="lot-info">
+                <h3 class="lot-name">{{ lot.name }}</h3>
+                <p class="lot-description">{{ lot.description }}</p>
+
+                <!-- Configuration Badge -->
+                <div class="mb-3">
+                    <span class="badge bg-primary">{{ lot.config_name }} Layout</span>
+                </div>
+
+                <!-- Level Pills -->
+                <div class="level-pills">
+                    {% for level in lot.levels %}
+                    <div class="level-pill">
+                        <span class="level-name">{{ level.name }}</span>
+                        <span class="text-muted" style="font-size: 0.7rem;">{{ level.rows }}×{{ level.columns }}</span>
+                        <span class="level-avail">{{ level.available }} free</span>
+                    </div>
+                    {% endfor %}
+                </div>
+
+                <!-- Stats -->
+                <div class="lot-stats">
+                    <div class="lot-stat">
+                        <div class="lot-stat-value">{{ lot.total_levels }}</div>
+                        <div class="lot-stat-label">Levels</div>
+                    </div>
+                    <div class="lot-stat">
+                        <div class="lot-stat-value">{{ lot.available_slots }}</div>
+                        <div class="lot-stat-label">Available</div>
+                    </div>
+                    <div class="lot-stat">
+                        <div class="lot-stat-value">{{ lot.occupancy_rate }}%</div>
+                        <div class="lot-stat-label">Occupied</div>
+                    </div>
+                </div>
+
+                <a href="{{ url_for('levels', lot_id=lot.id) }}" class="btn btn-select-lot">
+                    <i class="bi bi-layers me-2"></i>Select Level
+                </a>
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+{% endblock %}

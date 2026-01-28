@@ -10,7 +10,7 @@ import random
 import os
 
 # Import Database
-from database.models import db, User, ParkingSlot, Booking, BookingHistory
+from database.models import db, User, Location, ParkingLot, ParkingLevel, ParkingSlot, Booking, BookingHistory, ParkingConfiguration
 
 # Import ML Models
 from models.peak_hour_predictor import PeakHourPredictor
@@ -46,13 +46,14 @@ login_manager.login_message_category = 'info'
 def load_user(user_id):
     return User.query.get(int(user_id))
 
-# Jinja2 filter for formatting slot numbers (slot_1 -> Slot 1)
+# Jinja2 filter for formatting slot numbers (A_1 -> A-01)
 @app.template_filter('format_slot')
 def format_slot(slot_number):
-    """Convert slot_1 to Slot 1 format"""
-    if slot_number and slot_number.startswith('slot_'):
-        num = slot_number.replace('slot_', '')
-        return f'Slot {num}'
+    """Convert A_1 to A-01 format"""
+    if slot_number and '_' in slot_number:
+        parts = slot_number.split('_')
+        if len(parts) == 2:
+            return f'{parts[0]}-{parts[1].zfill(2)}'
     return slot_number
 
 # ============================================================================
@@ -71,21 +72,32 @@ occupancy_detector = OccupancyDetector()
 # ============================================================================
 
 def get_slots_data():
-    """Get parking slots from database with current status"""
+    """Get parking slots from database with current status based on active bookings"""
     slots = ParkingSlot.query.order_by(ParkingSlot.id).all()
     
     # If no slots in database, return empty list
     if not slots:
         return []
     
+    now = datetime.now()
     slot_list = []
     for slot in slots:
+        # Check if slot has an active booking right now
+        active_booking = Booking.query.filter(
+            Booking.slot_id == slot.id,
+            Booking.cancelled == False,
+            Booking.start_time <= now,
+            Booking.end_time > now
+        ).first()
+        
+        is_currently_occupied = active_booking is not None
+        
         slot_list.append({
             'id': slot.slot_number,
             'db_id': slot.id,
             'row': slot.row,
             'column': slot.column,
-            'occupied': slot.is_occupied,
+            'occupied': is_currently_occupied,
             'distance': slot_recommender.get_slot_distance(slot.slot_number)
         })
     
@@ -112,16 +124,34 @@ def update_slot_status(slot_id, is_occupied):
         slot.is_occupied = is_occupied
         db.session.commit()
 
+def is_slot_available(slot_db_id, start_time, end_time):
+    """Check if a slot is available for the given time range (no overlapping bookings)"""
+    # Find any overlapping active bookings
+    overlapping = Booking.query.filter(
+        Booking.slot_id == slot_db_id,
+        Booking.cancelled == False,
+        Booking.start_time < end_time,  # Existing booking starts before new ends
+        Booking.end_time > start_time   # Existing booking ends after new starts
+    ).first()
+    
+    return overlapping is None
+
 # ============================================================================
 # Authentication Routes
 # ============================================================================
 
 @app.route('/')
 def index():
-    """Home page - redirect to dashboard or login"""
+    """Home page - redirect to features or login"""
     if current_user.is_authenticated:
-        return redirect(url_for('dashboard'))
+        return redirect(url_for('features'))
     return redirect(url_for('login'))
+
+@app.route('/features')
+@login_required
+def features():
+    """Features landing page - showcases all system capabilities"""
+    return render_template('features.html')
 
 @app.route('/login', methods=['GET', 'POST'])
 def login():
@@ -141,7 +171,7 @@ def login():
             flash('Welcome back!', 'success')
             
             next_page = request.args.get('next')
-            return redirect(next_page or url_for('dashboard'))
+            return redirect(next_page or url_for('features'))
         else:
             flash('Invalid email or password.', 'error')
     
@@ -193,20 +223,153 @@ def logout():
     return redirect(url_for('login'))
 
 # ============================================================================
-# Dashboard Route
+# Location Selection Routes
+# ============================================================================
+
+@app.route('/locations')
+@login_required
+def locations():
+    """Location selection page"""
+    all_locations = Location.query.all()
+    
+    # Calculate stats for each location
+    locations_data = []
+    for loc in all_locations:
+        total_slots = 0
+        available_slots = 0
+        for lot in loc.parking_lots:
+            total_slots += lot.get_total_slots()
+            available_slots += lot.get_available_slots()
+        
+        locations_data.append({
+            'id': loc.id,
+            'name': loc.name,
+            'address': loc.address,
+            'description': loc.description,
+            'icon': loc.icon,
+            'total_slots': total_slots,
+            'available_slots': available_slots,
+            'lot_count': loc.parking_lots.count()
+        })
+    
+    return render_template('locations.html', locations=locations_data)
+
+
+@app.route('/location/<int:location_id>')
+@login_required
+def parking_lots(location_id):
+    """Parking lots at a specific location"""
+    location = Location.query.get_or_404(location_id)
+    
+    lots_data = []
+    for lot in location.parking_lots:
+        total_slots = lot.get_total_slots()
+        available_slots = lot.get_available_slots()
+        
+        # Get level info
+        levels_info = []
+        for level in lot.levels.order_by(ParkingLevel.level_order):
+            levels_info.append({
+                'id': level.id,
+                'name': level.level_name,
+                'rows': level.rows,
+                'columns': level.columns,
+                'total': level.slots.count(),
+                'available': level.get_available_count()
+            })
+        
+        # Get configuration info
+        config_name = lot.configuration.name if lot.configuration else 'Standard'
+        
+        lots_data.append({
+            'id': lot.id,
+            'name': lot.name,
+            'description': lot.description,
+            'total_levels': lot.total_levels,
+            'total_slots': total_slots,
+            'available_slots': available_slots,
+            'occupancy_rate': round((total_slots - available_slots) / total_slots * 100) if total_slots > 0 else 0,
+            'levels': levels_info,
+            'config_name': config_name
+        })
+    
+    return render_template('parking_lots.html', location=location, lots=lots_data)
+
+
+@app.route('/lot/<int:lot_id>')
+@login_required
+def levels(lot_id):
+    """Levels within a parking lot"""
+    lot = ParkingLot.query.get_or_404(lot_id)
+    location = lot.location
+    
+    levels_data = []
+    for level in lot.levels.order_by(ParkingLevel.level_order):
+        total = level.slots.count()
+        available = level.get_available_count()
+        
+        levels_data.append({
+            'id': level.id,
+            'name': level.level_name,
+            'order': level.level_order,
+            'rows': level.rows,
+            'columns': level.columns,
+            'total': total,
+            'available': available,
+            'occupancy_rate': round((total - available) / total * 100) if total > 0 else 0
+        })
+    
+    config_name = lot.configuration.name if lot.configuration else 'Standard'
+    
+    return render_template('levels.html', lot=lot, location=location, levels=levels_data, config_name=config_name)
+
+
+# ============================================================================
+# Dashboard Route (Level-Specific)
 # ============================================================================
 
 @app.route('/dashboard')
 @login_required
 def dashboard():
-    """Main dashboard with parking grid and ML insights"""
+    """Redirect to locations - dashboard now requires a level"""
+    return redirect(url_for('locations'))
+
+
+@app.route('/level/<int:level_id>/dashboard')
+@login_required
+def level_dashboard(level_id):
+    """Main dashboard with parking grid and ML insights for a specific level"""
     
-    # Get current slot data from database
-    slots = get_slots_data()
+    level = ParkingLevel.query.get_or_404(level_id)
+    lot = level.parking_lot
+    location = lot.location
+    
+    # Get slots for this level
+    slots = []
+    now = datetime.now()
+    for slot in level.slots.order_by(ParkingSlot.row, ParkingSlot.column):
+        # Check if slot has an active booking right now
+        active_booking = Booking.query.filter(
+            Booking.slot_id == slot.id,
+            Booking.cancelled == False,
+            Booking.start_time <= now,
+            Booking.end_time > now
+        ).first()
+        
+        is_currently_occupied = active_booking is not None
+        
+        slots.append({
+            'id': slot.slot_number,
+            'db_id': slot.id,
+            'row': slot.row,
+            'column': slot.column,
+            'occupied': is_currently_occupied,
+            'display_name': slot.display_name
+        })
+    
     stats = get_parking_stats(slots)
     
     # Get current time info
-    now = datetime.now()
     current_hour = now.hour
     current_day = now.weekday()
     
@@ -230,16 +393,38 @@ def dashboard():
         'occupancy': round(current_occupancy * 100)
     }
     
-    # Slot recommendations
+    # Slot recommendations from available slots on this level
     available_slots = [s['id'] for s in slots if not s['occupied']]
-    recommendations = slot_recommender.recommend(available_slots, top_n=5)
+    
+    # Build recommendations manually since slot_recommender uses old data
+    recommendations = []
+    for s in slots:
+        if not s['occupied']:
+            recommendations.append({
+                'slot_id': s['id'],
+                'display_name': s['display_name'],
+                'distance': s['row'] + s['column']  # Simple distance metric
+            })
+    recommendations.sort(key=lambda x: x['distance'])
+    recommendations = recommendations[:5]
+    
+    # Breadcrumb data
+    breadcrumb = {
+        'location': {'id': location.id, 'name': location.name},
+        'lot': {'id': lot.id, 'name': lot.name},
+        'level': {'id': level.id, 'name': f'Level {level.level_name}'}
+    }
     
     return render_template('dashboard.html',
                           slots=slots,
                           stats=stats,
                           best_times=best_times,
                           pricing=pricing,
-                          recommendations=recommendations)
+                          recommendations=recommendations,
+                          level=level,
+                          lot=lot,
+                          location=location,
+                          breadcrumb=breadcrumb)
 
 # ============================================================================
 # Booking Route
@@ -254,14 +439,12 @@ def book_slot(slot_id):
     slot_db = ParkingSlot.query.filter_by(slot_number=slot_id).first()
     if not slot_db:
         flash('Invalid slot selected.', 'error')
-        return redirect(url_for('dashboard'))
+        return redirect(url_for('locations'))
     
-    if slot_db.is_occupied:
-        flash('This slot is already occupied.', 'error')
-        return redirect(url_for('dashboard'))
-    
-    # Get slot info
-    slot_info = slot_recommender.get_slot_info(slot_id)
+    # Get level, lot, location context
+    level = slot_db.level
+    lot = level.parking_lot if level else None
+    location = lot.location if lot else None
     
     # Get pricing
     now = datetime.now()
@@ -293,9 +476,21 @@ def book_slot(slot_id):
         try:
             start_time = datetime.strptime(start_time_str, '%Y-%m-%dT%H:%M')
         except:
-            start_time = datetime.now()
+            flash('Invalid date/time format.', 'error')
+            return redirect(url_for('book_slot', slot_id=slot_id))
         
         end_time = start_time + timedelta(hours=duration)
+        
+        # VALIDATION 1: Check if start time is in the past
+        if start_time < datetime.now():
+            flash('Cannot book for past date/time. Please select a future time.', 'error')
+            return redirect(url_for('book_slot', slot_id=slot_id))
+        
+        # VALIDATION 2: Check for time conflicts with existing bookings
+        if not is_slot_available(slot_db.id, start_time, end_time):
+            flash('This slot is already booked for the selected time. Please choose a different time.', 'error')
+            return redirect(url_for('book_slot', slot_id=slot_id))
+        
         total_price = pricing['hourly_rate'] * duration
         
         # Create booking in database
@@ -310,9 +505,6 @@ def book_slot(slot_id):
             total_price=total_price,
             status='active'
         )
-        
-        # Update slot status
-        slot_db.is_occupied = True
         
         # Update user booking count
         current_user.booking_count += 1
@@ -334,21 +526,77 @@ def book_slot(slot_id):
         db.session.add(history)
         db.session.commit()
         
-        flash(f'Booking confirmed! Slot {slot_id} reserved for {duration} hours. '
-              f'Total: ₹{total_price:.2f}', 'success')
-        return redirect(url_for('dashboard'))
+        # Redirect to confirmation page with booking details
+        return redirect(url_for('booking_confirmation', booking_id=booking.id))
     
     slot = {
         'id': slot_id,
-        'row': slot_info['row'],
-        'column': slot_info['column'],
-        'distance': slot_info['distance_from_entry']
+        'display_name': slot_db.display_name,
+        'row': slot_db.row,
+        'column': slot_db.column,
+        'distance': slot_db.row + slot_db.column  # Simple distance metric
     }
+    
+    # Breadcrumb data
+    breadcrumb = None
+    if location and lot and level:
+        breadcrumb = {
+            'location': {'id': location.id, 'name': location.name},
+            'lot': {'id': lot.id, 'name': lot.name},
+            'level': {'id': level.id, 'name': f'Level {level.level_name}'}
+        }
     
     return render_template('book_slot.html',
                           slot=slot,
                           pricing=pricing,
-                          cancel_risk=cancel_risk)
+                          cancel_risk=cancel_risk,
+                          level=level,
+                          lot=lot,
+                          location=location,
+                          breadcrumb=breadcrumb)
+
+# ============================================================================
+# Booking Confirmation & Receipt Route
+# ============================================================================
+
+@app.route('/booking/confirmation/<int:booking_id>')
+@login_required
+def booking_confirmation(booking_id):
+    """Show booking confirmation page with download option"""
+    booking = Booking.query.get_or_404(booking_id)
+    
+    # Ensure user can only see their own booking (or admin can see all)
+    if booking.user_id != current_user.id and not current_user.is_admin:
+        flash('Unauthorized access.', 'error')
+        return redirect(url_for('my_bookings'))
+    
+    return render_template('booking_confirmation.html', booking=booking)
+
+@app.route('/booking/<int:booking_id>/receipt')
+@login_required
+def download_receipt(booking_id):
+    """Generate and download PDF receipt for a booking"""
+    from flask import Response
+    from utils.pdf_generator import generate_booking_receipt
+    
+    booking = Booking.query.get_or_404(booking_id)
+    
+    # Ensure user can only download their own receipt (or admin can download all)
+    if booking.user_id != current_user.id and not current_user.is_admin:
+        flash('Unauthorized access.', 'error')
+        return redirect(url_for('my_bookings'))
+    
+    # Generate PDF
+    pdf_buffer = generate_booking_receipt(booking)
+    
+    # Return as downloadable file
+    return Response(
+        pdf_buffer.getvalue(),
+        mimetype='application/pdf',
+        headers={
+            'Content-Disposition': f'attachment; filename=ParkHub_Receipt_{booking.id}.pdf'
+        }
+    )
 
 # ============================================================================
 # My Bookings Route

@@ -1,0 +1,457 @@
+{% extends "base.html" %}
+{% block title %}Welcome to ParkHub - AI-Powered Smart Parking{% endblock %}
+
+{% block content %}
+<style>
+    /* Hero Section */
+    .hero-section {
+        background: linear-gradient(135deg, #1e3a8a 0%, #3b82f6 50%, #06b6d4 100%);
+        border-radius: 20px;
+        padding: 60px 40px;
+        color: white;
+        position: relative;
+        overflow: hidden;
+        margin-bottom: 40px;
+    }
+
+    .hero-section::before {
+        content: '';
+        position: absolute;
+        top: -50%;
+        right: -50%;
+        width: 100%;
+        height: 200%;
+        background: radial-gradient(circle, rgba(255, 255, 255, 0.1) 0%, transparent 60%);
+        animation: pulse 4s ease-in-out infinite;
+    }
+
+    @keyframes pulse {
+
+        0%,
+        100% {
+            transform: scale(1);
+            opacity: 0.5;
+        }
+
+        50% {
+            transform: scale(1.1);
+            opacity: 0.8;
+        }
+    }
+
+    .hero-content {
+        position: relative;
+        z-index: 1;
+    }
+
+    .hero-title {
+        font-size: 3rem;
+        font-weight: 800;
+        margin-bottom: 20px;
+        text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.2);
+    }
+
+    .hero-subtitle {
+        font-size: 1.3rem;
+        opacity: 0.95;
+        margin-bottom: 30px;
+        max-width: 600px;
+    }
+
+    /* Feature Cards */
+    .feature-card {
+        background: white;
+        border-radius: 16px;
+        padding: 30px;
+        height: 100%;
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+        transition: all 0.3s ease;
+        border: 1px solid #e5e7eb;
+        position: relative;
+        overflow: hidden;
+    }
+
+    .feature-card:hover {
+        transform: translateY(-8px);
+        box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+    }
+
+    .feature-card::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 4px;
+        background: linear-gradient(90deg, var(--accent-color) 0%, var(--accent-color-light) 100%);
+    }
+
+    .feature-icon {
+        width: 60px;
+        height: 60px;
+        border-radius: 12px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.8rem;
+        margin-bottom: 20px;
+        background: linear-gradient(135deg, var(--accent-color) 0%, var(--accent-color-light) 100%);
+        color: white;
+    }
+
+    .feature-title {
+        font-size: 1.25rem;
+        font-weight: 700;
+        color: #1f2937;
+        margin-bottom: 12px;
+    }
+
+    .feature-desc {
+        color: #6b7280;
+        font-size: 0.95rem;
+        line-height: 1.6;
+    }
+
+    /* Accent color variations */
+    .card-blue {
+        --accent-color: #2563eb;
+        --accent-color-light: #3b82f6;
+    }
+
+    .card-green {
+        --accent-color: #059669;
+        --accent-color-light: #10b981;
+    }
+
+    .card-purple {
+        --accent-color: #7c3aed;
+        --accent-color-light: #8b5cf6;
+    }
+
+    .card-orange {
+        --accent-color: #ea580c;
+        --accent-color-light: #f97316;
+    }
+
+    .card-pink {
+        --accent-color: #db2777;
+        --accent-color-light: #ec4899;
+    }
+
+    .card-cyan {
+        --accent-color: #0891b2;
+        --accent-color-light: #06b6d4;
+    }
+
+    /* Stats Section */
+    .stats-section {
+        background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
+        border-radius: 16px;
+        padding: 40px;
+        margin-bottom: 40px;
+    }
+
+    .stat-item {
+        text-align: center;
+        padding: 20px;
+    }
+
+    .stat-number {
+        font-size: 2.5rem;
+        font-weight: 800;
+        background: linear-gradient(135deg, #2563eb 0%, #7c3aed 100%);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+    }
+
+    .stat-label {
+        color: #6b7280;
+        font-size: 0.9rem;
+        margin-top: 8px;
+    }
+
+    /* CTA Section */
+    .cta-section {
+        background: linear-gradient(135deg, #1f2937 0%, #374151 100%);
+        border-radius: 16px;
+        padding: 50px;
+        text-align: center;
+        color: white;
+    }
+
+    .cta-title {
+        font-size: 2rem;
+        font-weight: 700;
+        margin-bottom: 15px;
+    }
+
+    .cta-desc {
+        opacity: 0.9;
+        margin-bottom: 25px;
+        font-size: 1.1rem;
+    }
+
+    /* Animated background dots */
+    .animated-bg {
+        position: absolute;
+        width: 100%;
+        height: 100%;
+        top: 0;
+        left: 0;
+        overflow: hidden;
+        z-index: 0;
+    }
+
+    .animated-bg span {
+        position: absolute;
+        width: 20px;
+        height: 20px;
+        background: rgba(255, 255, 255, 0.1);
+        border-radius: 50%;
+        animation: float 15s infinite;
+    }
+
+    .animated-bg span:nth-child(1) {
+        left: 10%;
+        animation-delay: 0s;
+    }
+
+    .animated-bg span:nth-child(2) {
+        left: 30%;
+        animation-delay: 2s;
+    }
+
+    .animated-bg span:nth-child(3) {
+        left: 50%;
+        animation-delay: 4s;
+    }
+
+    .animated-bg span:nth-child(4) {
+        left: 70%;
+        animation-delay: 6s;
+    }
+
+    .animated-bg span:nth-child(5) {
+        left: 90%;
+        animation-delay: 8s;
+    }
+
+    @keyframes float {
+        0% {
+            transform: translateY(100vh) rotate(0deg);
+            opacity: 0;
+        }
+
+        10% {
+            opacity: 1;
+        }
+
+        90% {
+            opacity: 1;
+        }
+
+        100% {
+            transform: translateY(-100vh) rotate(720deg);
+            opacity: 0;
+        }
+    }
+
+    /* Quick action buttons */
+    .quick-action {
+        display: inline-flex;
+        align-items: center;
+        padding: 14px 28px;
+        border-radius: 12px;
+        font-weight: 600;
+        transition: all 0.3s ease;
+        text-decoration: none;
+    }
+
+    .quick-action-primary {
+        background: white;
+        color: #1e3a8a;
+    }
+
+    .quick-action-primary:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 10px 20px rgba(0, 0, 0, 0.2);
+        color: #1e3a8a;
+    }
+
+    .quick-action-secondary {
+        background: rgba(255, 255, 255, 0.2);
+        color: white;
+        border: 2px solid rgba(255, 255, 255, 0.4);
+    }
+
+    .quick-action-secondary:hover {
+        background: rgba(255, 255, 255, 0.3);
+        color: white;
+    }
+</style>
+
+<!-- Hero Section -->
+<div class="hero-section">
+    <div class="animated-bg">
+        <span></span><span></span><span></span><span></span><span></span>
+    </div>
+    <div class="hero-content text-center">
+        <h1 class="hero-title">
+            <i class="bi bi-p-circle-fill me-3"></i>Welcome to ParkHub
+        </h1>
+        <p class="hero-subtitle mx-auto">
+            Experience the future of parking with AI-powered predictions, dynamic pricing,
+            and smart slot recommendations. Find, book, and manage your parking effortlessly.
+        </p>
+        <div class="d-flex gap-3 justify-content-center flex-wrap">
+            <a href="{{ url_for('locations') }}" class="quick-action quick-action-primary">
+                <i class="bi bi-grid-fill me-2"></i>Book a Slot Now
+            </a>
+            <a href="{{ url_for('predictions') }}" class="quick-action quick-action-secondary">
+                <i class="bi bi-graph-up me-2"></i>View Predictions
+            </a>
+        </div>
+    </div>
+</div>
+
+<!-- Features Grid -->
+<h3 class="text-center mb-4 fw-bold">
+    <i class="bi bi-stars me-2 text-primary"></i>Powerful Features
+</h3>
+
+<div class="row g-4 mb-5">
+    <!-- Feature 1: AI Peak Hour Prediction -->
+    <div class="col-md-6 col-lg-4">
+        <div class="feature-card card-blue">
+            <div class="feature-icon">
+                <i class="bi bi-clock-history"></i>
+            </div>
+            <h4 class="feature-title">AI Peak Hour Prediction</h4>
+            <p class="feature-desc">
+                Machine learning algorithms analyze historical data to predict peak parking hours,
+                helping you plan your visits for minimum wait times.
+            </p>
+        </div>
+    </div>
+
+    <!-- Feature 2: Dynamic Pricing -->
+    <div class="col-md-6 col-lg-4">
+        <div class="feature-card card-green">
+            <div class="feature-icon">
+                <i class="bi bi-currency-rupee"></i>
+            </div>
+            <h4 class="feature-title">Dynamic Pricing</h4>
+            <p class="feature-desc">
+                Pay fair prices based on demand. Our intelligent pricing system adjusts rates
+                according to real-time occupancy, ensuring optimal value.
+            </p>
+        </div>
+    </div>
+
+    <!-- Feature 3: Smart Slot Recommendations -->
+    <div class="col-md-6 col-lg-4">
+        <div class="feature-card card-purple">
+            <div class="feature-icon">
+                <i class="bi bi-lightbulb"></i>
+            </div>
+            <h4 class="feature-title">Smart Recommendations</h4>
+            <p class="feature-desc">
+                Get personalized slot recommendations based on entry distance, availability,
+                and your preferences for the most convenient parking experience.
+            </p>
+        </div>
+    </div>
+
+    <!-- Feature 4: Cancellation Prediction -->
+    <div class="col-md-6 col-lg-4">
+        <div class="feature-card card-orange">
+            <div class="feature-icon">
+                <i class="bi bi-shield-check"></i>
+            </div>
+            <h4 class="feature-title">Cancellation Risk Analysis</h4>
+            <p class="feature-desc">
+                AI-powered cancellation prediction helps you understand booking reliability
+                and make informed decisions before confirming your reservation.
+            </p>
+        </div>
+    </div>
+
+    <!-- Feature 5: Real-time Monitoring -->
+    <div class="col-md-6 col-lg-4">
+        <div class="feature-card card-pink">
+            <div class="feature-icon">
+                <i class="bi bi-eye"></i>
+            </div>
+            <h4 class="feature-title">Real-time Monitoring</h4>
+            <p class="feature-desc">
+                Computer vision technology monitors slot occupancy in real-time, ensuring
+                accurate availability information and seamless parking operations.
+            </p>
+        </div>
+    </div>
+
+    <!-- Feature 6: PDF Receipts -->
+    <div class="col-md-6 col-lg-4">
+        <div class="feature-card card-cyan">
+            <div class="feature-icon">
+                <i class="bi bi-file-earmark-pdf"></i>
+            </div>
+            <h4 class="feature-title">Instant PDF Receipts</h4>
+            <p class="feature-desc">
+                Download professional PDF receipts for all your bookings instantly.
+                Keep organized records for expense tracking and reimbursements.
+            </p>
+        </div>
+    </div>
+</div>
+
+<!-- Stats Section -->
+<div class="stats-section">
+    <div class="row">
+        <div class="col-6 col-md-3">
+            <div class="stat-item">
+                <div class="stat-number">24</div>
+                <div class="stat-label">Parking Slots</div>
+            </div>
+        </div>
+        <div class="col-6 col-md-3">
+            <div class="stat-item">
+                <div class="stat-number">5</div>
+                <div class="stat-label">AI Models</div>
+            </div>
+        </div>
+        <div class="col-6 col-md-3">
+            <div class="stat-item">
+                <div class="stat-number">24/7</div>
+                <div class="stat-label">Availability</div>
+            </div>
+        </div>
+        <div class="col-6 col-md-3">
+            <div class="stat-item">
+                <div class="stat-number">95%</div>
+                <div class="stat-label">Prediction Accuracy</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- CTA Section -->
+<div class="cta-section">
+    <h3 class="cta-title">Ready to Experience Smart Parking?</h3>
+    <p class="cta-desc">Start booking now and enjoy hassle-free parking with AI assistance.</p>
+    <div class="d-flex gap-3 justify-content-center flex-wrap">
+        <a href="{{ url_for('locations') }}" class="btn btn-primary btn-lg px-4">
+            <i class="bi bi-arrow-right-circle me-2"></i>Find Parking
+        </a>
+        <a href="{{ url_for('my_bookings') }}" class="btn btn-outline-light btn-lg px-4">
+            <i class="bi bi-list-ul me-2"></i>My Bookings
+        </a>
+        {% if current_user.is_admin %}
+        <a href="{{ url_for('admin_analytics') }}" class="btn btn-warning btn-lg px-4">
+            <i class="bi bi-bar-chart me-2"></i>Admin Analytics
+        </a>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

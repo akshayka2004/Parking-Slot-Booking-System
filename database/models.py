@@ -39,12 +39,140 @@ class User(UserMixin, db.Model):
         return f'<User {self.email}>'
 
 
+# ============================================================================
+# Location Hierarchy Models
+# ============================================================================
+
+class ParkingConfiguration(db.Model):
+    """Configuration template for parking lot grid layouts"""
+    __tablename__ = 'parking_configurations'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(50), nullable=False)  # e.g., "Compact", "Standard", "Large"
+    description = db.Column(db.String(200))
+    num_levels = db.Column(db.Integer, default=2)
+    rows_per_level = db.Column(db.Integer, default=6)
+    columns_per_level = db.Column(db.Integer, default=5)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    
+    # Relationship
+    parking_lots = db.relationship('ParkingLot', backref='configuration', lazy='dynamic')
+    
+    @property
+    def slots_per_level(self):
+        return self.rows_per_level * self.columns_per_level
+    
+    @property
+    def total_capacity(self):
+        return self.num_levels * self.slots_per_level
+    
+    def __repr__(self):
+        return f'<ParkingConfiguration {self.name}>'
+
+
+class Location(db.Model):
+    """Geographic location (e.g., Mall, Airport, Hospital)"""
+    __tablename__ = 'locations'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(100), nullable=False)
+    address = db.Column(db.String(255))
+    description = db.Column(db.Text)
+    image_url = db.Column(db.String(255))
+    icon = db.Column(db.String(50), default='bi-geo-alt')
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    
+    # Relationship
+    parking_lots = db.relationship('ParkingLot', backref='location', lazy='dynamic', cascade='all, delete-orphan')
+    
+    def __repr__(self):
+        return f'<Location {self.name}>'
+
+
+class ParkingLot(db.Model):
+    """Parking lot within a location"""
+    __tablename__ = 'parking_lots'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    location_id = db.Column(db.Integer, db.ForeignKey('locations.id'), nullable=False, index=True)
+    configuration_id = db.Column(db.Integer, db.ForeignKey('parking_configurations.id'), nullable=True, index=True)
+    name = db.Column(db.String(100), nullable=False)
+    description = db.Column(db.Text)
+    total_levels = db.Column(db.Integer, default=2)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    
+    # Relationship
+    levels = db.relationship('ParkingLevel', backref='parking_lot', lazy='dynamic', cascade='all, delete-orphan')
+    
+    def get_total_slots(self):
+        """Get total number of slots in this lot"""
+        return sum(level.slots.count() for level in self.levels)
+    
+    def get_available_slots(self):
+        """Get number of available slots (calculated from active bookings)"""
+        from datetime import datetime
+        now = datetime.now()
+        total = 0
+        for level in self.levels:
+            for slot in level.slots:
+                # Check if slot has active booking
+                active = Booking.query.filter(
+                    Booking.slot_id == slot.id,
+                    Booking.cancelled == False,
+                    Booking.start_time <= now,
+                    Booking.end_time > now
+                ).first()
+                if not active:
+                    total += 1
+        return total
+    
+    def __repr__(self):
+        return f'<ParkingLot {self.name}>'
+
+
+class ParkingLevel(db.Model):
+    """Level within a parking lot (e.g., Level A, Level B)"""
+    __tablename__ = 'parking_levels'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    lot_id = db.Column(db.Integer, db.ForeignKey('parking_lots.id'), nullable=False, index=True)
+    level_name = db.Column(db.String(10), nullable=False)  # "A", "B", etc.
+    level_order = db.Column(db.Integer, default=0)  # For sorting
+    rows = db.Column(db.Integer, default=6)  # Number of rows in this level
+    columns = db.Column(db.Integer, default=5)  # Number of columns in this level
+    capacity = db.Column(db.Integer, default=30)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    
+    # Relationship
+    slots = db.relationship('ParkingSlot', backref='level', lazy='dynamic', cascade='all, delete-orphan')
+    
+    def get_available_count(self):
+        """Get number of available slots on this level"""
+        from datetime import datetime
+        now = datetime.now()
+        available = 0
+        for slot in self.slots:
+            active = Booking.query.filter(
+                Booking.slot_id == slot.id,
+                Booking.cancelled == False,
+                Booking.start_time <= now,
+                Booking.end_time > now
+            ).first()
+            if not active:
+                available += 1
+        return available
+    
+    def __repr__(self):
+        return f'<ParkingLevel {self.level_name}>'
+
+
 class ParkingSlot(db.Model):
     """Parking slot model"""
     __tablename__ = 'parking_slots'
     
     id = db.Column(db.Integer, primary_key=True)
-    slot_number = db.Column(db.String(20), unique=True, nullable=False)  # e.g., "slot_1"
+    level_id = db.Column(db.Integer, db.ForeignKey('parking_levels.id'), nullable=True, index=True)
+    slot_number = db.Column(db.String(20), nullable=False)  # e.g., "A-01", "B-15"
     row = db.Column(db.Integer, nullable=False)
     column = db.Column(db.Integer, nullable=False)
     is_occupied = db.Column(db.Boolean, default=False)
@@ -57,6 +185,13 @@ class ParkingSlot(db.Model):
     def coordinates(self):
         """Get slot coordinates as tuple"""
         return (self.row, self.column)
+    
+    @property 
+    def display_name(self):
+        """Get human-readable slot name"""
+        if self.level:
+            return f"{self.level.level_name}-{self.slot_number.split('_')[-1].zfill(2)}"
+        return self.slot_number
     
     def __repr__(self):
         return f'<ParkingSlot {self.slot_number}>'

@@ -7,4 +7,4 @@ numpy>=1.24.0
 opencv-python>=4.8.0
 Werkzeug>=3.0.0
 PyMySQL>=1.1.0
-
+reportlab>=4.0.0

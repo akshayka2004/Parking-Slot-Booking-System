@@ -122,6 +122,23 @@
 
 {% block extra_js %}
 <script>
+    // Set minimum datetime to now (prevent past date selection)
+    const startTimeInput = document.getElementById('start_time');
+    const now = new Date();
+    // Format: YYYY-MM-DDTHH:MM
+    const year = now.getFullYear();
+    const month = String(now.getMonth() + 1).padStart(2, '0');
+    const day = String(now.getDate()).padStart(2, '0');
+    const hours = String(now.getHours()).padStart(2, '0');
+    const minutes = String(now.getMinutes()).padStart(2, '0');
+    const minDateTime = `${year}-${month}-${day}T${hours}:${minutes}`;
+    startTimeInput.setAttribute('min', minDateTime);
+
+    // Set default value to current time
+    if (!startTimeInput.value) {
+        startTimeInput.value = minDateTime;
+    }
+
     // Update price based on duration selection
     const durationSelect = document.getElementById('duration');
     const totalPrice = document.getElementById('total-price');

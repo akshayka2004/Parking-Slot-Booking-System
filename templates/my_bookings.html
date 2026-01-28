@@ -56,12 +56,18 @@
                             {% endif %}
                         </td>
                         <td>
+                            {% if not booking.cancelled %}
+                            <a href="{{ url_for('download_receipt', booking_id=booking.id) }}"
+                                class="btn btn-outline-success btn-sm me-1" title="Download Receipt">
+                                <i class="bi bi-download"></i>
+                            </a>
+                            {% endif %}
                             {% if not booking.cancelled and booking.status == 'active' %}
                             <button type="button" class="btn btn-danger btn-sm"
-                                onclick="cancelBooking({{ booking.id }})">
-                                <i class="bi bi-x-circle me-1"></i>Cancel Booking
+                                onclick="cancelBooking({{ booking.id }})" title="Cancel Booking">
+                                <i class="bi bi-x-circle"></i>
                             </button>
-                            {% else %}
+                            {% elif booking.cancelled %}
                             <span class="text-muted">—</span>
                             {% endif %}
                         </td>

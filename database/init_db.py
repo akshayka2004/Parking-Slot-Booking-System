@@ -1,6 +1,6 @@
 """
 Database Initialization Script
-Creates tables and seeds initial data
+Creates tables and seeds initial data for multi-location parking system
 """
 
 import sys
@@ -10,7 +10,7 @@ import os
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from flask import Flask
-from database.models import db, User, ParkingSlot, Booking, BookingHistory
+from database.models import db, User, Location, ParkingLot, ParkingLevel, ParkingSlot, Booking, BookingHistory, ParkingConfiguration
 from datetime import datetime, timedelta
 import random
 
@@ -42,8 +42,11 @@ def init_database():
         # Seed users
         seed_users()
         
-        # Seed parking slots
-        seed_slots()
+        # Seed parking configurations
+        seed_configurations()
+        
+        # Seed location hierarchy
+        seed_locations()
         
         # Seed historical data for ML
         seed_booking_history()
@@ -81,24 +84,181 @@ def seed_users():
     print(f"  ✓ Created user: user@parking.com / user123")
 
 
-def seed_slots():
-    """Create 20 parking slots"""
-    print("\nSeeding parking slots...")
+def seed_configurations():
+    """Create parking configuration templates"""
+    print("\nSeeding parking configurations...")
     
-    for i in range(1, 21):
-        row = (i - 1) // 4 + 1
-        col = (i - 1) % 4 + 1
-        
-        slot = ParkingSlot(
-            slot_number=f'slot_{i}',
-            row=row,
-            column=col,
-            is_occupied=False
+    configs = [
+        ParkingConfiguration(
+            name='Compact',
+            description='Small lot with 4×4 grid per level',
+            num_levels=2,
+            rows_per_level=4,
+            columns_per_level=4
+        ),
+        ParkingConfiguration(
+            name='Standard',
+            description='Medium lot with 6×5 grid per level',
+            num_levels=2,
+            rows_per_level=6,
+            columns_per_level=5
+        ),
+        ParkingConfiguration(
+            name='Large',
+            description='Large lot with 8×6 grid per level',
+            num_levels=3,
+            rows_per_level=8,
+            columns_per_level=6
+        ),
+        ParkingConfiguration(
+            name='Express',
+            description='Single level quick access lot',
+            num_levels=1,
+            rows_per_level=5,
+            columns_per_level=4
         )
-        db.session.add(slot)
+    ]
+    
+    db.session.add_all(configs)
+    db.session.commit()
+    print(f"  ✓ Created {len(configs)} parking configurations")
+
+
+def seed_locations():
+    """Create locations, parking lots, levels, and slots with varied configurations"""
+    print("\nSeeding locations and parking hierarchy...")
+    
+    # Get configurations
+    compact = ParkingConfiguration.query.filter_by(name='Compact').first()
+    standard = ParkingConfiguration.query.filter_by(name='Standard').first()
+    large = ParkingConfiguration.query.filter_by(name='Large').first()
+    express = ParkingConfiguration.query.filter_by(name='Express').first()
+    
+    # Define locations with their details and configurations
+    locations_data = [
+        {
+            'name': 'City Mall',
+            'address': '123 Shopping Boulevard, Downtown',
+            'description': 'Premium shopping destination with multi-level parking',
+            'icon': 'bi-building',
+            'lots': [
+                {
+                    'name': 'Basement Parking', 
+                    'description': 'Underground parking with direct mall access', 
+                    'config': compact,
+                    'levels': ['B1', 'B2']
+                },
+                {
+                    'name': 'Rooftop Parking', 
+                    'description': 'Open-air parking with scenic views', 
+                    'config': large,
+                    'levels': ['R1', 'R2', 'R3']
+                }
+            ]
+        },
+        {
+            'name': 'Airport Terminal',
+            'address': '1 Aviation Way, Airport District',
+            'description': 'Convenient parking for domestic and international travelers',
+            'icon': 'bi-airplane',
+            'lots': [
+                {
+                    'name': 'Short-Term Parking', 
+                    'description': 'Hourly parking for quick pickups', 
+                    'config': standard,
+                    'levels': ['A', 'B']
+                },
+                {
+                    'name': 'Long-Term Parking', 
+                    'description': 'Daily/weekly parking for travelers', 
+                    'config': large,
+                    'levels': ['P1', 'P2', 'P3', 'P4']
+                }
+            ]
+        },
+        {
+            'name': 'Central Hospital',
+            'address': '500 Healthcare Drive, Medical District',
+            'description': 'Parking for patients, visitors, and staff',
+            'icon': 'bi-hospital',
+            'lots': [
+                {
+                    'name': 'Visitor Parking', 
+                    'description': 'Convenient parking near main entrance', 
+                    'config': compact,
+                    'levels': ['V1', 'V2']
+                },
+                {
+                    'name': 'Emergency Parking', 
+                    'description': 'Quick access to emergency department', 
+                    'config': express,
+                    'levels': ['E1']
+                }
+            ]
+        }
+    ]
+    
+    total_slots = 0
+    total_levels = 0
+    
+    for loc_data in locations_data:
+        # Create location
+        location = Location(
+            name=loc_data['name'],
+            address=loc_data['address'],
+            description=loc_data['description'],
+            icon=loc_data['icon']
+        )
+        db.session.add(location)
+        db.session.flush()
+        
+        for lot_data in loc_data['lots']:
+            config = lot_data['config']
+            
+            # Create parking lot with configuration
+            lot = ParkingLot(
+                location_id=location.id,
+                configuration_id=config.id,
+                name=lot_data['name'],
+                description=lot_data['description'],
+                total_levels=len(lot_data['levels'])
+            )
+            db.session.add(lot)
+            db.session.flush()
+            
+            for level_idx, level_name in enumerate(lot_data['levels']):
+                # Create level with configuration-based dimensions
+                level = ParkingLevel(
+                    lot_id=lot.id,
+                    level_name=level_name,
+                    level_order=level_idx,
+                    rows=config.rows_per_level,
+                    columns=config.columns_per_level,
+                    capacity=config.rows_per_level * config.columns_per_level
+                )
+                db.session.add(level)
+                db.session.flush()
+                total_levels += 1
+                
+                # Create slots based on configuration
+                for row in range(1, config.rows_per_level + 1):
+                    for col in range(1, config.columns_per_level + 1):
+                        slot_num = (row - 1) * config.columns_per_level + col
+                        slot = ParkingSlot(
+                            level_id=level.id,
+                            slot_number=f'{level_name}_{slot_num}',
+                            row=row,
+                            column=col,
+                            is_occupied=False
+                        )
+                        db.session.add(slot)
+                        total_slots += 1
     
     db.session.commit()
-    print(f"  ✓ Created 20 parking slots (5 rows x 4 columns)")
+    print(f"  ✓ Created 3 locations")
+    print(f"  ✓ Created 6 parking lots with varied configurations")
+    print(f"  ✓ Created {total_levels} levels")
+    print(f"  ✓ Created {total_slots} parking slots")
 
 
 def seed_booking_history():
@@ -107,6 +267,12 @@ def seed_booking_history():
     
     random.seed(42)
     base_date = datetime.now() - timedelta(days=30)
+    
+    # Get some slots to reference
+    slots = ParkingSlot.query.limit(50).all()
+    if not slots:
+        print("  ! No slots found, skipping booking history")
+        return
     
     records = []
     for _ in range(100):
@@ -129,9 +295,10 @@ def seed_booking_history():
         else:
             duration = round(random.uniform(0.5, 8), 1)  # Normal
         
+        slot = random.choice(slots)
         record = BookingHistory(
             timestamp=timestamp,
-            slot_id=f'slot_{random.randint(1, 20)}',
+            slot_id=slot.slot_number,
             user_id=f'user_{random.randint(1, 50)}',
             occupied=occupied,
             cancelled=random.random() < 0.15,
